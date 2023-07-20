@@ -174,9 +174,9 @@ history
     vim /etc/pbs.conf
             PBS_EXEC=/opt/pbs
             PBS_SERVER=master
-            PBS_START_SERVER=1
-            PBS_START_SCHED=1
-            PBS_START_COMM=1
+            PBS_START_SERVER=0
+            PBS_START_SCHED=0
+            PBS_START_COMM=0
             PBS_START_MOM=1
             PBS_HOME=/var/spool/pbs
             PBS_CORE_LIMIT=unlimited
@@ -200,18 +200,179 @@ I request you to check the NFS shares available on the NFS server by running the
 
 #### Mount NFS Share
 
-Now, create a directory on NFS client to mount the NFS share /home which we have created in the NFS server.
+Now, create a directory on NFS client `node2` to mount the NFS share /home which we have created in the NFS server `master`
 
     mkdir /mnt/home
 
-Use below command to mount a NFS share /home from NFS server 192.168.100.186 in /mnt/nfsfileshare on NFS client.
+Use below command to mount a NFS share /home from NFS server 192.168.100.186 in /mnt/nfsfileshare on NFS client `master`
 
     mount -t master:/home /mnt/home
 
-Verify the mounted share on the NFS client using mount command.
+Verify the mounted share on the NFS client `node2` using mount command.
 
     mount | grep nfs
 
 Also, you can use the df -hT command to check the mounted NFS share.
 
     df -hT
+
+Now edit the following conf file on both the nodes `node1` `node2`
+
+    vim /etc/pbs.conf
+                PBS_EXEC=/opt/pbs
+                PBS_SERVER=master
+                PBS_START_SERVER=0
+                PBS_START_SCHED=0
+                PBS_START_COMM=0
+                PBS_START_MOM=1
+                PBS_HOME=/var/spool/pbs
+                PBS_CORE_LIMIT=unlimited
+                PBS_SCP=/bin/scp
+
+Now copy the rpm files from master to node2
+
+    cd /root/rpmbuild/RPMS/x86_64/
+    cp * /home/RPMS/
+
+Now install openpbs execution rpm files  on `node2` and make file in `/var/spool/pbs/mom_priv/config` 
+
+    yum install openpbs-execution-23.06.06-0.x86_64.rpm
+    vim /var/spool/pbs/mom_priv/config 
+                     
+                     $logevent 0x1ff
+                     #$clientname node2
+                     $restrict_user_maxsysid 999
+
+Now on `node1`
+
+    vim /var/spool/pbs/mom_priv/config 
+                     $logevent 0x1ff
+                     #$clientname node1
+                     $restrict_user_maxsysid 999
+                     
+Now in `master` 
+            
+    vim /var/spool/pbs/server_priv/nodes
+            node1 np=1
+            node2 np=1
+Now create
+
+    qmgr
+        Max open servers: 49
+        Qmgr: create node node1
+        Qmgr: create node node2
+        Qmgr: 
+    pbsnodes -a
+
+You will get like this output 
+
+                    master
+                         Mom = master
+                         Port = 15002
+                         pbs_version = 23.06.06
+                         ntype = PBS
+                         state = free
+                         pcpus = 2
+                         resources_available.arch = linux
+                         resources_available.host = master
+                         resources_available.mem = 4811568kb
+                         resources_available.ncpus = 2
+                         resources_available.vnode = master
+                         resources_assigned.accelerator_memory = 0kb
+                         resources_assigned.hbmem = 0kb
+                         resources_assigned.mem = 0kb
+                         resources_assigned.naccelerators = 0
+                         resources_assigned.ncpus = 0
+                         resources_assigned.vmem = 0kb
+                         resv_enable = True
+                         sharing = default_shared
+                         license = l
+                         last_state_change_time = Thu Jul 20 14:55:47 2023
+                    
+                    node1
+                         Mom = node1
+                         Port = 15002
+                         pbs_version = 23.06.06
+                         ntype = PBS
+                         state = free
+                         pcpus = 2
+                         resources_available.arch = linux
+                         resources_available.host = node1
+                         resources_available.mem = 4811568kb
+                         resources_available.ncpus = 2
+                         resources_available.vnode = node1
+                         resources_assigned.accelerator_memory = 0kb
+                         resources_assigned.hbmem = 0kb
+                         resources_assigned.mem = 0kb
+                         resources_assigned.naccelerators = 0
+                         resources_assigned.ncpus = 0
+                         resources_assigned.vmem = 0kb
+                         resv_enable = True
+                         sharing = default_shared
+                         license = l
+                         last_state_change_time = Thu Jul 20 14:55:47 2023
+                    
+                    node2
+                         Mom = node2
+                         Port = 15002
+                         pbs_version = 23.06.06
+                         ntype = PBS
+                         state = free
+                         pcpus = 2
+                         resources_available.arch = linux
+                         resources_available.host = node2
+                         resources_available.mem = 4811568kb
+                         resources_available.ncpus = 2
+                         resources_available.vnode = node2
+                         resources_assigned.accelerator_memory = 0kb
+                         resources_assigned.hbmem = 0kb
+                         resources_assigned.mem = 0kb
+                         resources_assigned.naccelerators = 0
+                         resources_assigned.ncpus = 0
+                         resources_assigned.vmem = 0kb
+                         resv_enable = True
+                         sharing = default_shared
+                         license = l
+                         last_state_change_time = Thu Jul 20 14:55:54 2023
+
+First make user in all VMs 
+
+            adduser srk
+            passwd srk
+
+Now login to srk
+           
+            su - srk 
+            qsub -I   
+            qstat
+
+            vim demo.sh
+                            #!/bin/sh
+                            ### Set the job name (for your reference)
+                            #PBS -N testjob
+                            ### Set the project name, your department code by default
+                            #PBS -P cc
+                            ####
+                            #PBS -l select=1:ncpus=1
+                            ### Specify "wallclock time" required for this job, hhh:mm:ss
+                            #PBS -l walltime=00:01:00
+                            
+                            #PBS -l software=replace_with_Your_software_name
+                            # After job starts, must goto working directory.
+                            # $PBS_O_WORKDIR is the directory from where the job is fired.
+                            echo "==============================="
+                            echo $PBS_JOBID
+                            #cat $PBS_NODEFILE
+                            echo "==============================="
+                            cd $PBS_O_WORKDIR
+
+        qsub demo.sh
+                            7.master
+        qtsat
+
+        qstat -B
+        qstat -ans
+
+        
+
+
