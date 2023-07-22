@@ -1,0 +1,116 @@
+*******************************
+	Accounting in slurm
+*******************************
+
+On master
+_________
+
+# cp /etc/slurm/slurmdbd.conf.example /etc/slurm/slurmdbd.conf
+
+# vi /etc/slurm/slurmdbd.conf
+
+	check for the below entries and should also be uncommented in the last of this file      also Note that line should be commented : #StoragePass=password
+StorageType=accounting_storage/mysql
+StorageHost=localhost
+StorageUser=slurm
+StorageLoc=slurm_acct_db
+
+: Save and Exit
+
+# chown slurm:slurm /etc/slurm/slurmdbd.conf
+
+# mkdir -p /var/log/slurm
+
+# touch  /var/log/slurm/slurmdbd.log
+
+# systemctl status slurmdbd
+
+# systemctl start slurmdbd
+
+# systemctl enable slurmdbd
+
+# systemctl status slurmdbd
+
+# vi /etc/slurm/slurm.conf
+
+ 	check for the below entries and should also be uncommented
+
+AccountingStorageType=accounting_storage/slurmdbd
+AccountingStorageHost=localhost
+AccountingStorageUser=slurm
+
+: Save and Exit
+
+# systemctl restart slurmdbd
+
+# systemctl restart slurmctld       - on master
+
+# systemctl start mariadb
+
+# systemctl status mariadb
+
+Creation of Database
+---------------------
+# mysql
+
+MariaDB [(none)]> create user 'slurm'@'localhost';
+
+MariaDB [(none)]> grant all on slurm_acct_db.* TO 'slurm'@'localhost';
+
+MariaDB [(none)]> show databases;
+
+MariaDB [(none)]> exit
+
+# systemctl restart slurmctld
+
+# systemctl restart mariadb
+
+Using Account Manager
+---------------------
+
+# sacctmgr
+
+sacctmgr: show cluster
+sacctmgr: show user
+
+sacctmgr: add cluster <Cluster-name>							-> If there is a problem in adding the Cluster refresh the slurmdbd in 
+sacctmgr: add account <Account-name>
+sacctmgr: add user <User-name> account=<Account-name>
+
+sacctmgr: create  qos <qos-name> maxwall=2-00:00:00
+sacctmgr: show qos
+
+ADD qos to user
+---------------
+sacctmgr: modify user <User-name> set qos+=<qos-name>
+
+
+Reservation
+-----------
+
+ #scontrol create reservationname=test start=now duration=1 \
+   user=user1 partition=gpu tres=cpu=24,node=4
+or
+scontrol create reservation starttime=2009-02-06T16:00:00 \
+   duration=120 user=root flags=maint,ignore_jobs nodes=ALL
+
+
+#sbatch --reservation=alan_6 -N4 job.sh
+scontrol show res
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
